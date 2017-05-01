@@ -19,14 +19,14 @@ On macOS, libffi is available through [Homebrew](https://brew.sh).
 ```
 git clone https://github.com/skeeto/elisp-ffi.git ~/.emacs.d/elisp-ffi
 make ffi-glue test -C ~/.emacs.d/elisp-ffi
-echo '(add-to-list 'load-path "~/.emacs.d/elisp-ffi")' >> ~/.emacs
+echo "(add-to-list 'load-path \"~/.emacs.d/elisp-ffi\")" >> ~/.emacs
 ```
 
 ### Install monto-emacs
 
 ```
 git clone git@github.umn.edu:melt/monto-editor-emacs.git ~/.emacs.d/monto-editor-emacs
-echo '(add-to-list 'load-path "~/.emacs.d/monto-editor-emacs")' >> ~/.emacs
+echo "(add-to-list 'load-path \"~/.emacs.d/monto-editor-emacs\")" >> ~/.emacs
 ```
 
 ## Usage
