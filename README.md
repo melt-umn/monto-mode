@@ -27,8 +27,19 @@ echo "(add-to-list 'load-path \"~/.emacs.d/elisp-ffi\")" >> ~/.emacs
 ```
 git clone git@github.umn.edu:melt/monto-editor-emacs.git ~/.emacs.d/monto-editor-emacs
 echo "(add-to-list 'load-path \"~/.emacs.d/monto-editor-emacs\")" >> ~/.emacs
+echo "(require 'monto-mode)" >> ~/.emacs
+```
+
+### Enable monto-emacs for languages
+
+You need to enable each language for Monto manually. For example, to use Monto
+with the Silver language, whose extension is `.sv`, you would add the following
+to your `.emacs`:
+
+```
+(add-to-list 'monto-language-alist '("sv" . "silver"))
 ```
 
 ## Usage
 
-Just do `M-x monto-mode`.
+Just do `M-x monto-mode` to enable the Monto mode.

@@ -29,7 +29,9 @@
         (not monto-mode)
         (> (prefix-numeric-value arg) 0)))
   (if monto-mode
-    (add-hook 'after-change-functions 'monto-change nil t)
+	(progn
+      (add-hook 'after-change-functions 'monto-change nil t)
+	  (monto-init))
     (remove-hook 'after-change-functions 'monto-change t)))
 
 ;; Register monto-mode.
@@ -45,3 +47,5 @@
 	  (print 'monto-change)
 	  (print (list start end len))
 	  (print lang))))
+
+(provide 'monto-mode)
