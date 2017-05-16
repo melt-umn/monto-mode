@@ -43,3 +43,7 @@ to your `.emacs`:
 ## Usage
 
 Just do `M-x monto-mode` to enable the Monto mode.
+
+## Caveats
+
+This is only tested on x86_64 Linux. macOS users, you've been warned.

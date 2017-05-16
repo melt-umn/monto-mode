@@ -13,6 +13,8 @@
 (defun monto--language ()
   ; TODO Rewrite this to be less... bad. Maybe this needs a macro for the
   ; let-if pair?
+  "Returns the language associated with the current buffer, if Monto is enabled
+  for the file's extension. If not, returns nil."
   (let ((path (buffer-file-name)))
 	(if path
 	  (let ((ext (file-name-extension path)))
@@ -30,6 +32,8 @@
         (> (prefix-numeric-value arg) 0)))
   (if monto-mode
 	(progn
+	  (font-lock-mode 0)
+	  (font-lock-set-defaults)
       (add-hook 'after-change-functions 'monto-change nil t)
 	  (monto-init))
     (remove-hook 'after-change-functions 'monto-change t)))
