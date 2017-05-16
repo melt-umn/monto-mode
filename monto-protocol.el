@@ -8,8 +8,14 @@
 
 (defvar monto-libzmq "libzmq.so"
   "The ZeroMQ library's name.")
+(defconst monto-handlers (list
+  (cons "discovery" #'print))
+  "The handler functions for each type of response.")
 (defconst monto-recv-bufsize 1048576
   "The number of bytes to allocate to the receive buffer.")
+(defconst monto-recv-time 1; 0.05
+  "The amount of time, in seconds, to wait between polling for responses from
+   the broker.")
 
 ;;;;;;;;;;;;;;;;;;;;;;;
 ;;; Library Globals ;;;
@@ -17,9 +23,6 @@
 
 (defvar monto--context nil
   "The FFI address of the ZeroMQ context.")
-(defvar monto-handlers (list
-  (cons "discovery" #'print))
-  "The handler functions for each type of response.")
 (defvar monto--ids nil
   "An association between file paths and their last known IDs.")
 (defvar monto--recv-socket nil
@@ -80,7 +83,7 @@
     (ffi-call monto-libzmq "zmq_connect" [:sint32 :pointer :pointer] monto--send-socket send-addr)) 
   ; Create and start the timer.
   (unless monto--timer
-    (setq monto--timer (run-at-time 0.01 0.01 #'monto--timer)))
+    (setq monto--timer (run-at-time monto-recv-time monto-recv-time #'monto--timer)))
   ; Return nil instead of the last-completed operation's result.
   nil)
 
@@ -113,15 +116,19 @@
     (contents . (
       (discover_services . []))))))
 
-(defun monto-send-source-message (physical-name id language contents)
+(defun monto-most-recent-versionp (name id)
+  "Returns whether this ID represents the most recent version of the file."
+  (= (cdr (assoc name monto--ids)) id))
+
+(defun monto-send-source-message (physical-name language contents)
   "Sends a source message. As this is asynchronous, the response will
   eventually be returned from (monto--recv)."
   (monto--send `(
     (tag . "source")
     (contents . (
       (source . (
-        (physical-name . ,physical-name)))
-      (id . ,id)
+        (physical_name . ,physical-name)))
+      (id . ,(monto--next-version physical-name))
       (language . ,language)
       (contents . ,contents))))))
 
@@ -136,10 +143,14 @@
 
 (defun monto--next-version (name)
   "Returns the next ID for this name."
-  (let* ((pair (assoc name monto--ids))
-         (id (if pair (1+ (cdr pair)) 1)))
-    (setf (alist-get name monto--ids) id)
-    id))
+  (let ((pair (assoc name monto--ids)))
+    ; This is much nicer in Emacs 25+, where (alist-get) is a setf-able location.
+    ; We support Emacs 24, though, so no dice.
+    (if pair
+      (rplacd pair (1+ (cdr pair)))
+      (progn
+        (setq monto--ids (cons (cons name 1) monto--ids))
+        1))))
 
 (defun monto--recv ()
   "Receives a message if one is queued. Returns a decoded object, not a string.
@@ -149,6 +160,8 @@
          (return-code (ffi-call-errno monto-libzmq "zmq_recv" [:sint32 :pointer :pointer :uint64 :sint32] monto--recv-socket buf monto-recv-bufsize monto--DONTWAIT))
          (status (car return-code))
          (errno (cdr return-code)))
+    (if (not (numberp status))
+      (print return-code))
     (if (> status 0)
       ; The status is the length of the received message if it's positive.
       (let* ((bytes (ffi-read-array buf :uint8 status))
@@ -176,7 +189,9 @@
     (when recv
       (let* ((tag (cdr (assoc 'tag recv)))
              (contents (cdr (assoc 'contents recv)))
-             (fn (cdr (assoc tag monto--handlers))))
-        (funcall fn contents)))))
+             (fn (cdr (assoc tag monto-handlers))))
+        (if fn
+          (funcall fn contents)
+          (print (concat "No handler for " tag)))))))
 
 (provide 'monto-protocol)

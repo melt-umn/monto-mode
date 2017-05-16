@@ -1,3 +1,4 @@
+(require 'monto-handlers)
 (require 'monto-protocol)
 
 ;; Variable for whether monto-mode is enabled or not.
@@ -7,8 +8,12 @@
 
 ;; Monto language map. Add a mapping from extension to language name to enable
 ;; Monto for the language. Entries should be two strings, e.g. ("sv" . "silver").
-(defvar monto-language-alist nil
+(defconst monto-language-alist nil
   "An alist of languages to use with Monto.")
+
+(defconst monto-product-handlers (list
+  (cons "errors" #'monto--errors--handler))
+  "Handlers for various products.")
 
 (defun monto--language ()
   ; TODO Rewrite this to be less... bad. Maybe this needs a macro for the
@@ -22,7 +27,6 @@
 		  (let ((entry (assoc ext monto-language-alist)))
 			(if entry (cdr entry))))))))
 
-;; Monto Mode entry function.
 (defun monto-mode (&optional arg)
   "Monto minor mode."
   (interactive "P")
@@ -35,21 +39,44 @@
 	  (font-lock-mode 0)
 	  (font-lock-set-defaults)
       (add-hook 'after-change-functions 'monto-change nil t)
-	  (monto-init))
+	  (monto-init)
+      (setq monto-handlers
+        (cons (cons "product" #'monto-on-product)
+              monto-handlers)))
     (remove-hook 'after-change-functions 'monto-change t)))
 
-;; Register monto-mode.
 (if (not (assq 'monto-mode minor-mode-alist))
+  "Registers monto-mode as a minor mode."
   (setq minor-mode-alist
     (cons '(monto-mode " Monto")
           minor-mode-alist)))
 
-;; Monto on-change function.
 (defun monto-change (start end len)
+  "Fires on a change in a monto-mode'd buffer."
   (let ((lang (monto--language)))
 	(when lang
-	  (print 'monto-change)
-	  (print (list start end len))
-	  (print lang))))
+      (monto-send-source-message (buffer-file-name) lang (buffer-string)))))
+
+(defun monto-on-product (product)
+  "The handler for Monto products. Delegates to the appropriate subhandler
+   (see the monto-product-handlers assoc)."
+  (let ((contents (monto--json-get product 'contents))
+        (physical-name (monto--json-get product 'source 'physical_name))
+        (product-type (monto--json-get product 'product))
+        (version (monto--json-get product 'id)))
+    (when (monto-most-recent-versionp physical-name version)
+      (let ((handler (cdr (assoc product-type) monto-product-handlers))
+        (if handler
+          (funcall handler contents)
+          (print (concat "No product handler for " product-type))))))))
+
+(defun monto--json-get (obj &rest path)
+  "A helper to get properties from a JSON object. Note that this is recursive,
+   so don't pass more than a few dozen parameters for the path.
+   
+   Why does Emacs Lisp not have tail recursion? Who knows."
+  (if (eq path nil)
+    obj
+    (apply #'monto--json-get (cdr (assoc (car path) obj)) (cdr path))))
 
 (provide 'monto-mode)
