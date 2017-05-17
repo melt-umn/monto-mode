@@ -65,10 +65,10 @@
         (product-type (monto--json-get product 'product))
         (version (monto--json-get product 'id)))
     (when (monto-most-recent-versionp physical-name version)
-      (let ((handler (cdr (assoc product-type) monto-product-handlers))
+      (let ((handler (cdr (assoc product-type monto-product-handlers))))
         (if handler
           (funcall handler contents)
-          (print (concat "No product handler for " product-type))))))))
+          (print (concat "No product handler for " product-type)))))))
 
 (defun monto--json-get (obj &rest path)
   "A helper to get properties from a JSON object. Note that this is recursive,
