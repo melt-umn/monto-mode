@@ -1,4 +1,6 @@
 .*
+*~
 !.gitignore
 
+test.dcv2
 test.sv
