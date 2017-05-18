@@ -44,7 +44,7 @@
 (defun monto-change (start end len)
   "Fires on a change in a monto-mode'd buffer."
   (let ((lang (monto--language))
-        (cur-time (subseq (current-time) 0 3)))
+        (cur-time (cl-subseq (current-time) 0 3)))
     (when (and lang (monto--debounce cur-time))
       (monto-send-source-message (buffer-file-name) lang (buffer-string)))
       (setq monto--last-send cur-time)))

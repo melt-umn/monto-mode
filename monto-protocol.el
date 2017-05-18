@@ -67,8 +67,8 @@
         (ffi-call nil "free" [:void :pointer] patch-buf)
         (setq monto--zmq-version (list major minor patch)))))
   ; Check the version number.
-  (if (or (/= (first  monto--zmq-version) 4)
-          (<  (second monto--zmq-version) 1))
+  (if (or (/= (car monto--zmq-version) 4)
+          (< (cadr monto--zmq-version) 1))
     (throw 'zmq-version-error monto--zmq-version))
   ; Create a context.
   (unless monto--context
