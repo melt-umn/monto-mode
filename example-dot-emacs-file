@@ -1,0 +1,20 @@
+(add-to-list 'load-path "~/.emacs.d/elisp-ffi")
+(add-to-list 'load-path "~/.emacs.d/monto-editor-emacs")
+
+(require 'monto-mode)
+(add-to-list 'monto-language-alist '("sv" . "silver"))
+(add-to-list 'monto-language-alist '("dcv2" . "dcv2"))
+(setq monto-libzmq "libzmq.so.5")
+(def-monto-highlighting-styles
+  (constant
+    :foreground "red"
+    :background "blue"
+    :weight bold)
+  (operator
+    :foreground "green")
+  (identifier
+    :foreground "purple")
+  (keyword
+    :foreground "orange")
+  (comment
+    :background "grey"))
