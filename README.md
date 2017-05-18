@@ -1,6 +1,6 @@
-# monto-editor-emacs
+# monto-mode
 
-A [Monto](https://github.com/monto-editor) client for emacs.
+A [Monto](https://github.com/monto-editor) major mode for emacs.
 
 ## Dependencies
 
@@ -22,28 +22,26 @@ make ffi-glue test -C ~/.emacs.d/elisp-ffi
 echo "(add-to-list 'load-path \"~/.emacs.d/elisp-ffi\")" >> ~/.emacs
 ```
 
-### Install monto-emacs
+### Install monto-mode
 
 ```
-git clone git@github.umn.edu:melt/monto-editor-emacs.git ~/.emacs.d/monto-editor-emacs
-echo "(add-to-list 'load-path \"~/.emacs.d/monto-editor-emacs\")" >> ~/.emacs
+git clone https://github.com/melt-umn/monto-mode.git ~/.emacs.d/monto-mode
+echo "(add-to-list 'load-path \"~/.emacs.d/monto-mode\")" >> ~/.emacs
 echo "(require 'monto-mode)" >> ~/.emacs
 ```
 
-### Enable monto-emacs for languages
+### Configuration
 
-You need to enable each language for Monto manually. For example, to use Monto
-with the Silver language, whose extension is `.sv`, you would add the following
-to your `.emacs`:
-
-```
-(add-to-list 'monto-language-alist '("sv" . "silver"))
-```
+By default, monto-mode doesn't do much. You need to set up styles and
+language associations to your `.emacs`. See the `example-dot-emacs-file`
+for more information.
 
 ## Usage
 
-Just do `M-x monto-mode` to enable the Monto mode.
+`monto-mode` should automatically activate for any files with appropriate
+extensions.
 
 ## Caveats
 
-This is only tested on x86_64 Linux. macOS users, you've been warned.
+ - This is only tested on x86_64 Linux. macOS users, you've been warned.
+ - This was written in Vim by a Vim user. Bug reports welcomed.
