@@ -13,7 +13,7 @@
   "The handler functions for each type of response.")
 (defconst monto-recv-bufsize 1048576
   "The number of bytes to allocate to the receive buffer.")
-(defconst monto-recv-time 1; 0.05
+(defconst monto-recv-time 0.5
   "The amount of time, in seconds, to wait between polling for responses from
    the broker.")
 
@@ -160,9 +160,7 @@
          (return-code (ffi-call-errno monto-libzmq "zmq_recv" [:sint32 :pointer :pointer :uint64 :sint32] monto--recv-socket buf monto-recv-bufsize monto--DONTWAIT))
          (status (car return-code))
          (errno (cdr return-code)))
-    (if (not (numberp status))
-      (print return-code))
-    (if (> status 0)
+    (if (and (numberp status) (> status 0))
       ; The status is the length of the received message if it's positive.
       (let* ((bytes (ffi-read-array buf :uint8 status))
 			 (str (string-as-multibyte (apply #'unibyte-string bytes))))

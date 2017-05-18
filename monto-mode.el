@@ -12,7 +12,8 @@
   "An alist of languages to use with Monto.")
 
 (defconst monto-product-handlers (list
-  (cons "errors" #'monto--errors--handler))
+  (cons "errors" #'monto-errors--handler)
+  (cons "highlighting" #'monto-highlighting--handler))
   "Handlers for various products.")
 
 (defun monto--language ()
@@ -67,7 +68,7 @@
     (when (monto-most-recent-versionp physical-name version)
       (let ((handler (cdr (assoc product-type monto-product-handlers))))
         (if handler
-          (funcall handler contents)
+          (funcall handler physical-name contents)
           (print (concat "No product handler for " product-type)))))))
 
 (defun monto--json-get (obj &rest path)
