@@ -1,6 +1,6 @@
-; Add elisp-ffi (a dependency of ours) and monto-editor-emacs to the load path.
+; Add elisp-ffi (a dependency of ours) and monto-mode to the load path.
 (add-to-list 'load-path "~/.emacs.d/elisp-ffi")
-(add-to-list 'load-path "~/.emacs.d/monto-editor-emacs")
+(add-to-list 'load-path "~/.emacs.d/monto-mode")
 
 ; Load Monto Mode.
 (require 'monto-mode)
