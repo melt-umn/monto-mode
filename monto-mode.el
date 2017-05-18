@@ -1,4 +1,5 @@
 (require 'monto-handlers)
+(require 'monto-macros)
 (require 'monto-protocol)
 
 ;; Variable for whether monto-mode is enabled or not.

@@ -54,21 +54,6 @@
 ;;; Highlighting Handler ;;;
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-(defmacro def-monto-highlighting-styles (&rest styles)
-  (let ((ast nil))
-    (dolist (asc styles)
-      (let ((style (car asc))
-            (attrs (cdr asc))
-            (face (gensym)))
-        (let ((def `(defface ,face '((t ,@attrs)) "The docs are mandatory."))
-              (add `(add-to-list
-                      'monto-highlighting-styles
-                      (cons ,(prin1-to-string style) ',face))))
-          (setq ast (cons def
-                    (cons add
-                          ast))))))
-    `(prog1 nil ,@ast)))
-
 (defun monto-highlighting--handler (path tokens)
   (let ((buf (find-file-noselect path)))
     (with-current-buffer buf

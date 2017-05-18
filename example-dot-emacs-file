@@ -1,10 +1,15 @@
+; Add elisp-ffi (a dependency of ours) and monto-editor-emacs to the load path.
 (add-to-list 'load-path "~/.emacs.d/elisp-ffi")
 (add-to-list 'load-path "~/.emacs.d/monto-editor-emacs")
 
+; Load Monto Mode.
 (require 'monto-mode)
-(add-to-list 'monto-language-alist '("sv" . "silver"))
-(add-to-list 'monto-language-alist '("dcv2" . "dcv2"))
+
+; Set the name of the ZeroMQ library. This *will* need to be tweaked depending
+; on your system configuration.
 (setq monto-libzmq "libzmq.so.5")
+
+; Set up Monto fonts.
 (def-monto-highlighting-styles
   (constant
     :foreground "red"
@@ -18,3 +23,8 @@
     :foreground "orange")
   (comment
     :background "grey"))
+
+; Set up Monto languages.
+(def-monto-languages
+  ("dcv2"   "dcv2")
+  ("silver" "sv"))
