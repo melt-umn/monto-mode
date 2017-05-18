@@ -2,11 +2,6 @@
 (require 'monto-macros)
 (require 'monto-protocol)
 
-;; Variable for whether monto-mode is enabled or not.
-(defvar monto-mode nil
-  "Mode for Monto syntax highlighting.")
-(make-variable-buffer-local 'monto-mode)
-
 ;; Monto language map. Add a mapping from extension to language name to enable
 ;; Monto for the language. Entries should be two strings, e.g. ("sv" . "silver").
 (defconst monto-language-alist nil
@@ -17,47 +12,42 @@
   (cons "highlighting" #'monto-highlighting--handler))
   "Handlers for various products.")
 
+(defconst monto--debounce-time 50000 ; 0.05 sec
+  "The minimum number of microseconds to wait.")
+(defvar monto--last-send '(0 0 0)
+  "The last time a message was sent.")
+
 (defun monto--language ()
   ; TODO Rewrite this to be less... bad. Maybe this needs a macro for the
   ; let-if pair?
   "Returns the language associated with the current buffer, if Monto is enabled
   for the file's extension. If not, returns nil."
   (let ((path (buffer-file-name)))
-	(if path
-	  (let ((ext (file-name-extension path)))
-		(if (> (length ext) 0)
-		  (let ((entry (assoc ext monto-language-alist)))
-			(if entry (cdr entry))))))))
+    (if path
+      (let ((ext (file-name-extension path)))
+        (if (> (length ext) 0)
+          (let ((entry (assoc ext monto-language-alist)))
+            (if entry (cdr entry))))))))
 
-(defun monto-mode (&optional arg)
-  "Monto minor mode."
-  (interactive "P")
-  (setq monto-mode
-    (if (null arg)
-        (not monto-mode)
-        (> (prefix-numeric-value arg) 0)))
-  (if monto-mode
-	(progn
-	  (font-lock-mode 0)
-	  (font-lock-set-defaults)
-      (add-hook 'after-change-functions 'monto-change nil t)
-	  (monto-init)
-      (setq monto-handlers
-        (cons (cons "product" #'monto-on-product)
-              monto-handlers)))
-    (remove-hook 'after-change-functions 'monto-change t)))
+(defun monto--debounce (now)
+  (let* ((res (cl-mapcar #'- now monto--last-send))
+         (usec (+ (caddr res) (* 1000000 (cadr res)))))
+    (and (> usec monto--debounce-time))))
 
-(if (not (assq 'monto-mode minor-mode-alist))
-  "Registers monto-mode as a minor mode."
-  (setq minor-mode-alist
-    (cons '(monto-mode " Monto")
-          minor-mode-alist)))
+(define-derived-mode monto-mode prog-mode "Monto"
+  "Major mode using Monto."
+  (add-hook 'after-change-functions 'monto-change nil t)
+  (add-to-list 'monto-handlers (cons "product" #'monto-on-product))
+  (monto-init)
+  (monto-change 0 0 0))
 
 (defun monto-change (start end len)
   "Fires on a change in a monto-mode'd buffer."
-  (let ((lang (monto--language)))
-	(when lang
-      (monto-send-source-message (buffer-file-name) lang (buffer-string)))))
+  (let ((lang (monto--language))
+        (cur-time (subseq (current-time) 0 3)))
+    (when (and lang (monto--debounce cur-time))
+      (monto-send-source-message (buffer-file-name) lang (buffer-string)))
+      (setq monto--last-send cur-time)))
 
 (defun monto-on-product (product)
   "The handler for Monto products. Delegates to the appropriate subhandler

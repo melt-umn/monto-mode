@@ -11,18 +11,18 @@
 
 ; Set up Monto fonts.
 (def-monto-highlighting-styles
+  (comment
+    :foreground "grey")
   (constant
-    :foreground "red"
-    :background "blue"
-    :weight bold)
-  (operator
-    :foreground "green")
+    :foreground "red")
   (identifier
     :foreground "purple")
   (keyword
     :foreground "orange")
-  (comment
-    :background "grey"))
+  (literal
+    :foreground "blue")
+  (operator
+    :foreground "green"))
 
 ; Set up Monto languages.
 (def-monto-languages

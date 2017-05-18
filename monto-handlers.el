@@ -68,9 +68,7 @@
             (let* ((style (elt style 0))
                    (face (cdr (assoc style monto-highlighting-styles))))
               (if face
-                (let ((overlay (make-overlay start end buf)))
-                  (overlay-put overlay 'face face)
-                  (overlay-put overlay 'monto-highlighting t))
+                (put-text-property start end 'font-lock-face face)
                 (print (concat "Unknown style: " style))))))))))
 
 (provide 'monto-handlers)

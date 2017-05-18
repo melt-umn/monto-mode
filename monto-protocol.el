@@ -11,7 +11,7 @@
 (defconst monto-handlers (list
   (cons "discovery" #'print))
   "The handler functions for each type of response.")
-(defconst monto-recv-bufsize 1048576
+(defconst monto-recv-bufsize (* 4 1048576) ; 4 MiB
   "The number of bytes to allocate to the receive buffer.")
 (defconst monto-recv-time 0.5
   "The amount of time, in seconds, to wait between polling for responses from

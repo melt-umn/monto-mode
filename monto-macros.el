@@ -20,9 +20,12 @@
 (defmacro def-monto-languages (&rest entries)
   "Defines languages to be used with Monto."
   (defun add-one (lang ext)
-    `(add-to-list 'monto-language-alist '(,ext . ,lang)))
+    (list
+      `(add-to-list 'monto-language-alist '(,ext . ,lang))
+      (let ((pattern (concat "\\." ext "\\'")))
+        `(add-to-list 'auto-mode-alist '(,pattern . monto-mode)))))
   (defun helper (lang &rest exts)
-    (mapcar (lambda (ext) (add-one lang ext)) exts))
+    (apply #'append (mapcar (lambda (ext) (add-one lang ext)) exts)))
   (let ((exprs (apply #'append (mapcar (lambda (l) (apply #'helper l)) entries))))
     `(prog1 nil ,@exprs)))
 
