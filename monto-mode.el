@@ -31,7 +31,7 @@
 
 (defun monto--debounce (now)
   (let* ((res (cl-mapcar #'- now monto--last-send))
-         (usec (+ (caddr res) (* 1000000 (cadr res)))))
+         (usec (+ (nth 2 res) (* 1000000 (cadr res)))))
     (and (> usec monto--debounce-time))))
 
 (define-derived-mode monto-mode prog-mode "Monto"
