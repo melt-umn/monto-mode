@@ -7,7 +7,7 @@
     (dolist (asc styles)
       (let ((style (car asc))
             (attrs (cdr asc))
-            (face (gensym)))
+            (face (cl-gensym)))
         (let ((def `(defface ,face '((t ,@attrs)) ""))
               (add `(add-to-list
                       'monto-highlighting-styles
@@ -17,7 +17,7 @@
                           ast))))))
     `(prog1 nil ,@ast)))
 
-(defun def-monto-languages (&rest entries)
+(defmacro def-monto-languages (&rest entries)
   "Defines languages to be used with Monto."
   (defun add-one (lang ext)
     `(add-to-list 'monto-language-alist '(,ext . ,lang)))
