@@ -33,7 +33,7 @@ echo "(require 'monto-mode)" >> ~/.emacs
 ### Configuration
 
 By default, monto-mode doesn't do much. You need to set up styles and
-language associations to your `.emacs`. See the `example-dot-emacs-file`
+language associations in your `.emacs`. See the `example-dot-emacs-file.el`
 for more information.
 
 ## Usage
