@@ -1,13 +1,11 @@
-; Add elisp-ffi (a dependency of ours) and monto-mode to the load path.
-(add-to-list 'load-path "~/.emacs.d/elisp-ffi")
+; Add monto-mode to the load path.
 (add-to-list 'load-path "~/.emacs.d/monto-mode")
 
 ; Load Monto Mode.
 (require 'monto-mode)
 
-; Set the name of the ZeroMQ library. This *will* need to be tweaked depending
-; on your system configuration.
-(setq monto-libzmq "libzmq.so.5")
+; Set the URL to connect to the broker at.
+(setq monto-broker-url "http://localhost:28888")
 
 ; Set up Monto fonts.
 (def-monto-highlighting-styles

@@ -1,58 +1,21 @@
 (require 'cl-lib)
-(require 'ffi)
 (require 'json)
+(require 'request)
 
 ;;;;;;;;;;;;;;;;;;;;
 ;;; User Options ;;;
 ;;;;;;;;;;;;;;;;;;;;
 
-(defvar monto-libzmq "libzmq.so"
-  "The ZeroMQ library's name.")
-(defconst monto-handlers (list
-  (cons "discovery" #'print))
-  "The handler functions for each type of response.")
-(defconst monto-recv-bufsize (* 4 1048576) ; 4 MiB
-  "The number of bytes to allocate to the receive buffer.")
-(defconst monto-recv-time 0.5
-  "The amount of time, in seconds, to wait between polling for responses from
-   the broker.")
-
-;;;;;;;;;;;;;;;;;;;;;;;
-;;; Library Globals ;;;
-;;;;;;;;;;;;;;;;;;;;;;;
-
-(defvar monto--context nil
-  "The FFI address of the ZeroMQ context.")
-(defvar monto--ids nil
-  "An association between file paths and their last known IDs.")
-(defvar monto--recv-socket nil
-  "The FFI address of the ZeroMQ socket used for receiving data from the
-   broker.")
-(defvar monto--send-socket nil
-  "The FFI address of the ZeroMQ socket used for sending data to the broker.")
-(defvar monto--timer nil
-  "The timer object for the recv timer callback.")
-(defvar monto--zmq-version nil
-  "The (detected) version of ZeroMQ we're linking against.")
-
-;;;;;;;;;;;;;;;;;;;;;
-;;; FFI Constants ;;;
-;;;;;;;;;;;;;;;;;;;;;
-
-;; TODO These may change from system to system...
-;; They're defined as C macros, too, so that makes it even worse.
-(defconst monto--DONTWAIT 1
-  "Tells ZeroMQ not to block while reading.")
-(defconst monto--EAGAIN 11
-  "The errno returned to indicate that DONTWAIT was passed and there was no
-   message queued.")
+(defvar monto-broker-url "http://localhost:28888"
+  "The URL of the broker.")
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;; "Public" Functions ;;;
 ;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-(cl-defun monto-init (&optional (send-addr "tcp://127.0.0.1:5000") (recv-addr "tcp://127.0.0.1:5001"))
+(cl-defun monto-init ()
   "Initializes Monto."
+
   ; Get the version number.
   (unless monto--zmq-version
     (let ((major-buf (ffi-call nil "malloc" [:pointer :uint64] 4))
