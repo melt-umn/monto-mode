@@ -1,3 +1,5 @@
+;;; -*- lexical-binding: t -*-
+
 (require 'cl-lib)
 (require 'json)
 (require 'request)
@@ -7,7 +9,7 @@
 ;;;;;;;;;;;;;;;;;;;;
 
 (defvar monto-broker-url "http://localhost:28888"
-  "The URL of the broker.")
+  "The URL of the broker. This should not end with a slash.")
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;; "Public" Functions ;;;
@@ -15,144 +17,56 @@
 
 (cl-defun monto-init ()
   "Initializes Monto."
+  
+  ; Send a negotiation.
+  (cl-defun error-handler (&key error-thrown &allow-other-keys)
+    (throw 'monto-error (cons 'negotiation error-thrown)))
+  (setq client-negotiation '(
+    (monto
+      (major . 3)
+      (minor . 0)
+      (patch . 0))
+	(client
+	  (id . "edu.umn.cs.melt.monto3.emacs")
+	  (name . "monto3-mode")
+	  (vendor . "MELT")
+	  (major . 0)
+	  (minor . 1)
+	  (patch . 0))))
+  (setq monto-init-cbn nil)
+  (cl-defun ok-handler (&key data &allow-other-keys)
+	; TODO: Actually check compatibility... Right now this relies on the broker
+	; to do so, because I hate elisp.
+	(setq monto-init-cbn data))
+  (let ((body (json-encode client-negotiation))
+	    (handlers `(
+		  (200 . ,#'ok-handler))))
+    (request
+	  (concat monto-broker-url "/monto/version")
+	  :type        "POST"
+	  :data        body
+	  :error       #'error-handler
+	  :parser      #'json-read
+	  :status-code handlers
+	  :sync        t))
+    monto-init-cbn)
 
-  ; Get the version number.
-  (unless monto--zmq-version
-    (let ((major-buf (ffi-call nil "malloc" [:pointer :uint64] 4))
-          (minor-buf (ffi-call nil "malloc" [:pointer :uint64] 4))
-          (patch-buf (ffi-call nil "malloc" [:pointer :uint64] 4)))
-      (ffi-call monto-libzmq "zmq_version" [:void :pointer :pointer :pointer] major-buf minor-buf patch-buf)
-      (let ((major (ffi-deref major-buf :sint32 0))
-            (minor (ffi-deref minor-buf :sint32 0))
-            (patch (ffi-deref patch-buf :sint32 0)))
-        (ffi-call nil "free" [:void :pointer] major-buf)
-        (ffi-call nil "free" [:void :pointer] minor-buf)
-        (ffi-call nil "free" [:void :pointer] patch-buf)
-        (setq monto--zmq-version (list major minor patch)))))
-  ; Check the version number.
-  (if (or (/= (car monto--zmq-version) 4)
-          (< (cadr monto--zmq-version) 1))
-    (throw 'zmq-version-error monto--zmq-version))
-  ; Create a context.
-  (unless monto--context
-    (setq monto--context (ffi-call monto-libzmq "zmq_ctx_new" [:pointer])))
-  ; Create the receiving socket and connect to the broker.
-  (unless monto--recv-socket
-    (setq monto--recv-socket (ffi-call monto-libzmq "zmq_socket" [:pointer :pointer :sint32] monto--context 0))
-    (ffi-call monto-libzmq "zmq_connect" [:sint32 :pointer :pointer] monto--recv-socket recv-addr))
-  ; Create the sending socket and connect to the broker.
-  (unless monto--send-socket
-    (setq monto--send-socket (ffi-call monto-libzmq "zmq_socket" [:pointer :pointer :sint32] monto--context 0))
-    (ffi-call monto-libzmq "zmq_connect" [:sint32 :pointer :pointer] monto--send-socket send-addr)) 
-  ; Create and start the timer.
-  (unless monto--timer
-    (setq monto--timer (run-at-time monto-recv-time monto-recv-time #'monto--timer)))
-  ; Return nil instead of the last-completed operation's result.
-  nil)
+(defun monto-update-sources (path contents &optional language cb)
+  "Sends a product to the broker know about an updated version of a source
+  file."
+  (cl-defun error-handler (&key error-thrown &allow-other-keys)
+    (throw 'monto-error (cons 'update-source error-thrown)))
+  (request
+	(concat monto-broker-url "/monto/broker/source")
+	:params      `((path . ,path))
+	:type        "PUT"
+	:data        contents
+	:error       #'error-handler
+	:status-code (if cb `((200 . ,cb)) nil)))
 
-(defun monto-exit ()
-  "Deinitializes Monto. This is still a bit flaky; Monto interacts...
-  non-perfectly with exits from clients. To be on the safe side, restart the
-  broker."
-  ; Stop the timer.
-  (when monto--timer
-    (cancel-timer monto--timer)
-    (setq monto--timer nil))
-  ; Close and destroy the receiving socket.
-  (when monto--recv-socket
-    (ffi-call monto-libzmq "zmq_close" [:sint32 :pointer] monto--recv-socket)
-    (setq monto--recv-socket nil))
-  ; Close and destroy the sending socket.
-  (when monto--send-socket
-    (ffi-call monto-libzmq "zmq_close" [:sint32 :pointer] monto--send-socket)
-    (setq monto--send-socket nil))
-  ; Destroy the context.
-  (when monto--context
-    (ffi-call monto-libzmq "zmq_ctx_destroy" [:void :pointer] monto--context)
-    (setq monto--context nil)))
-
-(defun monto-discover ()
-  "Sends a discovery request. As this is asynchronous, the response will
-  eventually be returned from (monto--recv)."
-  (monto--send '(
-    (tag . "discovery")
-    (contents . (
-      (discover_services . []))))))
-
-(defun monto-most-recent-versionp (name id)
-  "Returns whether this ID represents the most recent version of the file."
-  (= (cdr (assoc name monto--ids)) id))
-
-(defun monto-send-source-message (physical-name language contents)
-  "Sends a source message. As this is asynchronous, the response will
-  eventually be returned from (monto--recv)."
-  (monto--send `(
-    (tag . "source")
-    (contents . (
-      (source . (
-        (physical_name . ,physical-name)))
-      (id . ,(monto--next-version physical-name))
-      (language . ,language)
-      (contents . ,contents))))))
-
-;;;;;;;;;;;;;;;;;;;;;;;;;;;
-;;; "Private" Functions ;;;
-;;;;;;;;;;;;;;;;;;;;;;;;;;;
-
-(defun monto--ensure ()
-  "Ensures Monto is initialized."
-  (unless monto--context
-    (monto-init)))
-
-(defun monto--next-version (name)
-  "Returns the next ID for this name."
-  (let ((pair (assoc name monto--ids)))
-    ; This is much nicer in Emacs 25+, where (alist-get) is a setf-able location.
-    ; We support Emacs 24, though, so no dice.
-    (if pair
-      (rplacd pair (1+ (cdr pair)))
-      (progn
-        (setq monto--ids (cons (cons name 1) monto--ids))
-        1))))
-
-(defun monto--recv ()
-  "Receives a message if one is queued. Returns a decoded object, not a string.
-  If no message was queued, returns nil."
-  (monto--ensure)
-  (let* ((buf (ffi-call nil "malloc" [:pointer :uint64] monto-recv-bufsize))
-         (return-code (ffi-call-errno monto-libzmq "zmq_recv" [:sint32 :pointer :pointer :uint64 :sint32] monto--recv-socket buf monto-recv-bufsize monto--DONTWAIT))
-         (status (car return-code))
-         (errno (cdr return-code)))
-    (if (and (numberp status) (> status 0))
-      ; The status is the length of the received message if it's positive.
-      (let* ((bytes (ffi-read-array buf :uint8 status))
-			 (str (string-as-multibyte (apply #'unibyte-string bytes))))
-        (ffi-call nil "free" [:void :pointer] buf)
-        (json-read-from-string str))
-      (progn
-        (ffi-call-errno nil "free" [:void :pointer] buf)
-        (if (or (= 0 errno) (= monto--EAGAIN errno))
-          nil
-          (throw 'zmq-recv-error errno))))))
-
-(defun monto--send (msg)
-  "Sends a message. The message should be a JSON-able object, not a string.
-  Returns t if the message was sent successfully, nil if not."
-  (monto--ensure)
-  (let* ((str (json-encode msg))
-         (ret (ffi-call monto-libzmq "zmq_send" [:sint32 :pointer :pointer :uint64 :sint32] monto--send-socket str (length str) 0)))
-    (when (< ret 0)
-	  (throw 'zmq-send-error ret))))
-
-(defun monto--timer ()
-  "The timer function that checks for a response."
-  (let ((recv (monto--recv)))
-    (when recv
-      (let* ((tag (cdr (assoc 'tag recv)))
-             (contents (cdr (assoc 'contents recv)))
-             (fn (cdr (assoc tag monto-handlers))))
-        (if fn
-          (funcall fn contents)
-          (print (concat "No handler for " tag)))))))
+(defun monto-request-product-from (service-id product-type path language ok-cb &optional err-cb)
+  "Requests a product from the broker, calling OK-CB with the product on
+  success or ERR-CB on failure."
+  TODO)
 
 (provide 'monto-protocol)

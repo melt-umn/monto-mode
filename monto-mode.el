@@ -1,3 +1,5 @@
+;;; -*- lexical-binding: t -*-
+
 (require 'monto-handlers)
 (require 'monto-macros)
 (require 'monto-protocol)

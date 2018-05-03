@@ -1,3 +1,5 @@
+;;; -*- lexical-binding: t -*-
+
 (require 'cl-lib)
 
 (defmacro def-monto-highlighting-styles (&rest styles)
@@ -18,7 +20,8 @@
     `(prog1 nil ,@ast)))
 
 (defmacro def-monto-languages (&rest entries)
-  "Defines languages to be used with Monto."
+  "Defines languages to be used with Monto. See the example-dot-emacs-file file
+   for an example."
   (defun add-one (lang ext)
     (list
       `(add-to-list 'monto-language-alist '(,ext . ,lang))
