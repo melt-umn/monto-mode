@@ -14,10 +14,8 @@
   (cons "highlighting" #'monto-highlighting--handler))
   "Handlers for various products.")
 
-(defconst monto--debounce-time 50000 ; 0.05 sec
-  "The minimum number of microseconds to wait.")
-(defvar monto--last-send '(0 0 0)
-  "The last time a message was sent.")
+(defvar monto--in-flight nil
+  "Whether a Monto request is in-flight")
 
 (defun monto--language ()
   ; TODO Rewrite this to be less... bad. Maybe this needs a macro for the
@@ -31,11 +29,6 @@
           (let ((entry (assoc ext monto-language-alist)))
             (if entry (cdr entry))))))))
 
-(defun monto--debounce (now)
-  (let* ((res (cl-mapcar #'- now monto--last-send))
-         (usec (+ (nth 2 res) (* 1000000 (cadr res)))))
-    (and (> usec monto--debounce-time))))
-
 (define-derived-mode monto-mode prog-mode "Monto"
   "Major mode using Monto."
   (monto-init)
@@ -48,13 +41,19 @@
         (src  (buffer-string))
         (lang (monto--language))
         (now  (cl-subseq (current-time) 0 3)))
-    (when (and lang (monto--debounce now))
-      (monto-update-source path src lang)
-      (monto-get-product path "highlighting" lang
-        (lambda (res)
-		  (condition-case err
-		    (monto-highlighting--handler path (alist-get 'contents res))
-			(error (print err)))))
-      (setq monto--last-send now))))
+    (when (and lang (not monto--in-flight))
+      (setq monto--in-flight t)
+      (monto-update-source path src lang
+        (lambda ()
+          (monto-get-product path "highlighting" lang
+            (lambda (res)
+              (condition-case err
+                (monto-highlighting--handler path (alist-get 'contents res))
+                (error (print err))))
+            (lambda ()
+              (setq monto--in-flight nil))))
+        (lambda ()
+          (setq monto--in-flight nil)))
+      (setq monto--in-flight nil))))
 
 (provide 'monto-mode)

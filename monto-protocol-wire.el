@@ -20,7 +20,7 @@
   
   ; Send a negotiation.
   (cl-defun error-handler (&key error-thrown &allow-other-keys)
-    (throw 'monto-error (cons 'negotiation error-thrown)))
+    (message "Monto Error: negotiation: %s" error-thrown))
   (setq client-negotiation '(
     (monto
       (major . 3)
@@ -49,22 +49,25 @@
     :type    "POST")
   monto-init-cbn)
 
-(defun monto-update-source (path contents &optional language cb)
+(defun monto-update-source (path contents &optional language ok-cb err-cb)
   "Sends a product to the broker know about an updated version of a source
   file."
 
-  (cl-defun ok-handler (&key data &allow-other-keys)
-    (cb data))
   (cl-defun error-handler (&key error-thrown &allow-other-keys)
-    (throw 'monto-error (cons 'update-source error-thrown)))
-  (request
-    (concat monto-broker-url "/monto/broker/source")
-    :headers '(("Content-Type" . "text/plain"))
-    :data    contents
-    :error   #'error-handler
-    :params  `((path . ,path))
-    :success (if cb #'ok-handler (lambda (&rest _) nil))
-    :type    "PUT"))
+    (message "Monto Error: update-source: %s" error-thrown)
+	(if err-cb (funcall err-cb)))
+  
+  (let ((params `((path . ,path))))
+	(if language
+	  (setq params (append params `((language . ,language)))))
+    (request
+      (concat monto-broker-url "/monto/broker/source")
+      :headers '(("Content-Type" . "text/plain"))
+      :data    contents
+      :error   #'error-handler
+      :params  params
+      :success (lambda (&rest _) (if ok-cb (funcall ok-cb)))
+      :type    "PUT")))
 
 (defun monto-request-product-from (service-id product-type path language ok-cb &optional err-cb)
   "Requests a product from the broker, calling OK-CB with the product on
@@ -73,7 +76,8 @@
   (cl-defun ok-handler (&key data &allow-other-keys)
     (funcall ok-cb data))
   (cl-defun error-handler (&key error-thrown &allow-other-keys)
-    (throw 'monto-error (cons 'request-product-from error-thrown)))
+    (message "Monto Error: request-product-from: %s" error-thrown))
+
   (request
     (concat monto-broker-url "/monto/" service-id "/" product-type)
     :error   (or err-cb #'error-handler)
