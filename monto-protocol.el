@@ -1,72 +1,65 @@
 ;;; -*- lexical-binding: t -*-
 
 (require 'cl-lib)
-(require 'json)
-(require 'request)
+(require 'monto-protocol-wire)
+(require 'monto-util)
 
 ;;;;;;;;;;;;;;;;;;;;
-;;; User Options ;;;
+;;; Private Data ;;;
 ;;;;;;;;;;;;;;;;;;;;
 
-(defvar monto-broker-url "http://localhost:28888"
-  "The URL of the broker. This should not end with a slash.")
+(defvar monto--services nil
+  "The services known by the broker.")
+(defvar monto--products nil
+  "An association from (PRODUCT-TYPE . LANGUAGE) to a list of services.")
+(defvar monto--inited nil
+  "Whether Monto has been initialized or not.")
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;; "Public" Functions ;;;
 ;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-(cl-defun monto-init ()
-  "Initializes Monto."
-  
-  ; Send a negotiation.
-  (cl-defun error-handler (&key error-thrown &allow-other-keys)
-    (throw 'monto-error (cons 'negotiation error-thrown)))
-  (setq client-negotiation '(
-    (monto
-      (major . 3)
-      (minor . 0)
-      (patch . 0))
-	(client
-	  (id . "edu.umn.cs.melt.monto3.emacs")
-	  (name . "monto3-mode")
-	  (vendor . "MELT")
-	  (major . 0)
-	  (minor . 1)
-	  (patch . 0))))
-  (setq monto-init-cbn nil)
-  (cl-defun ok-handler (&key data &allow-other-keys)
-	; TODO: Actually check compatibility... Right now this relies on the broker
-	; to do so, because I hate elisp.
-	(setq monto-init-cbn data))
-  (let ((body (json-encode client-negotiation))
-	    (handlers `(
-		  (200 . ,#'ok-handler))))
-    (request
-	  (concat monto-broker-url "/monto/version")
-	  :type        "POST"
-	  :data        body
-	  :error       #'error-handler
-	  :parser      #'json-read
-	  :status-code handlers
-	  :sync        t))
-    monto-init-cbn)
+(defun monto-init ()
+  (defun convert-product (prd)
+    (let ((name (alist-get 'name     prd))
+          (lang (alist-get 'language prd)))
+      (cons name lang)))
+  (defun convert-service (svc)
+    (let ((name     (>-> '(service id) svc))
+          (products (>-> '(products)   svc)))
+      (cons name (mapcar #'convert-product products))))
+  (defun products<-services (svcs)
+    (let ((pspairs (flatmap (lambda (x)
+            (mapcar (lambda (p) (cons (car x) p)) (cdr x))) svcs))
+          (prds nil))
+      (dolist (pair pspairs prds)
+        (->> prds
+          (alist-get (cdr pair))
+          (cons (car pair))
+          (setf (alist-get (cdr pair) prds))))))
 
-(defun monto-update-sources (path contents &optional language cb)
-  "Sends a product to the broker know about an updated version of a source
-  file."
-  (cl-defun error-handler (&key error-thrown &allow-other-keys)
-    (throw 'monto-error (cons 'update-source error-thrown)))
-  (request
-	(concat monto-broker-url "/monto/broker/source")
-	:params      `((path . ,path))
-	:type        "PUT"
-	:data        contents
-	:error       #'error-handler
-	:status-code (if cb `((200 . ,cb)) nil)))
+  (->>
+    (monto-negotiation)
+    (alist-get 'services)
+    (mapcar #'convert-service)
+    (setq monto--services)
+    products<-services
+    (setq monto--products))
+  (setq monto--inited t))
 
-(defun monto-request-product-from (service-id product-type path language ok-cb &optional err-cb)
-  "Requests a product from the broker, calling OK-CB with the product on
-  success or ERR-CB on failure."
-  TODO)
+(defun monto-must-init ()
+  (unless monto--inited
+    (monto-init)))
+
+(defun monto-get-product (path product-type language ok-cb &optional err-cb)
+  (monto-must-init)
+  (let ((service (cadr (assoc (cons product-type language) monto--products))))
+    (if service
+      (monto-request-product-from service product-type path language ok-cb
+                                  err-cb)
+      (funcall (or err-cb #'message) (concat "No service for product-type "
+                                             product-type " and language "
+                                             language))))
+  nil)
 
 (provide 'monto-protocol)

@@ -38,39 +38,23 @@
 
 (define-derived-mode monto-mode prog-mode "Monto"
   "Major mode using Monto."
-  (add-hook 'after-change-functions 'monto-change nil t)
-  (add-to-list 'monto-handlers (cons "product" #'monto-on-product))
   (monto-init)
+  (add-hook 'after-change-functions 'monto-change nil t)
   (monto-change 0 0 0))
 
 (defun monto-change (start end len)
   "Fires on a change in a monto-mode'd buffer."
-  (let ((lang (monto--language))
-        (cur-time (cl-subseq (current-time) 0 3)))
-    (when (and lang (monto--debounce cur-time))
-      (monto-send-source-message (buffer-file-name) lang (buffer-string)))
-      (setq monto--last-send cur-time)))
-
-(defun monto-on-product (product)
-  "The handler for Monto products. Delegates to the appropriate subhandler
-   (see the monto-product-handlers assoc)."
-  (let ((contents (monto--json-get product 'contents))
-        (physical-name (monto--json-get product 'source 'physical_name))
-        (product-type (monto--json-get product 'product))
-        (version (monto--json-get product 'id)))
-    (when (monto-most-recent-versionp physical-name version)
-      (let ((handler (cdr (assoc product-type monto-product-handlers))))
-        (if handler
-          (funcall handler physical-name contents)
-          (print (concat "No product handler for " product-type)))))))
-
-(defun monto--json-get (obj &rest path)
-  "A helper to get properties from a JSON object. Note that this is recursive,
-   so don't pass more than a few dozen parameters for the path.
-   
-   Why does Emacs Lisp not have tail recursion? Who knows."
-  (if (eq path nil)
-    obj
-    (apply #'monto--json-get (cdr (assoc (car path) obj)) (cdr path))))
+  (let ((path (buffer-file-name))
+        (src  (buffer-string))
+        (lang (monto--language))
+        (now  (cl-subseq (current-time) 0 3)))
+    (when (and lang (monto--debounce now))
+      (monto-update-source path src lang)
+      (monto-get-product path "highlighting" lang
+        (lambda (res)
+		  (condition-case err
+		    (monto-highlighting--handler path (alist-get 'contents res))
+			(error (print err)))))
+      (setq monto--last-send now))))
 
 (provide 'monto-mode)

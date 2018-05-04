@@ -14,9 +14,7 @@
               (add `(add-to-list
                       'monto-highlighting-styles
                       (cons ,(prin1-to-string style) ',face))))
-          (setq ast (cons def
-                    (cons add
-                          ast))))))
+          (setq ast (cons def (cons add ast))))))
     `(prog1 nil ,@ast)))
 
 (defmacro def-monto-languages (&rest entries)

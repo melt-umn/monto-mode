@@ -1,5 +1,7 @@
 ;;; -*- lexical-binding: t -*-
 
+(require 'monto-util)
+
 ;;;;;;;;;;;;;;;;;;;;
 ;;; User Options ;;;
 ;;;;;;;;;;;;;;;;;;;;
@@ -60,17 +62,11 @@
   (let ((buf (find-file-noselect path)))
     (with-current-buffer buf
       (dotimes (i (length tokens))
-        (let* ((tok (elt tokens i))
-               (length (monto--json-get tok 'length))
-               (offset (monto--json-get tok 'offset))
-               (style (monto--json-get tok 'style))
-               (start (+ (point-min) offset))
-               (end (+ start length)))
-          (if (> (length style) 0)
-            (let* ((style (elt style 0))
-                   (face (cdr (assoc style monto-highlighting-styles))))
-              (if face
-                (put-text-property start end 'font-lock-face face)
-                (print (concat "Unknown style: " style))))))))))
+        (let* ((tok   (elt tokens i))
+               (start (+ (point-min) (alist-get 'start_byte tok)))
+               (end   (+ (point-min) (alist-get 'end_byte tok)))
+			   (color (>-> '(color value) tok))
+			   (face  (cdr (assoc color monto-highlighting-styles))))
+          (put-text-property start end 'font-lock-face face))))))
 
 (provide 'monto-handlers)
