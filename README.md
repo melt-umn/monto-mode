@@ -4,7 +4,7 @@ A [Monto](https://github.com/monto-editor) major mode for emacs.
 
 ## Dependencies
 
-Requires the [request.el](https://github.com/skeeto/elisp-ffi) library
+Requires the [request.el](https://github.com/tkf/emacs-request) library
 
 ## Installation
 
